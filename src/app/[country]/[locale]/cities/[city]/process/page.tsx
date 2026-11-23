@@ -27,7 +27,7 @@ import {
 } from "@/lib/cities";
 import { getCityIdentity } from "@/lib/city-identity";
 import { getCityOrganization } from "@/lib/city-organization";
-import { buildBreadcrumbJsonLd, buildCityAlternates } from "@/lib/seo";
+import { buildBreadcrumbJsonLd, buildCityAlternates, pageTitle } from "@/lib/seo";
 import { PageHero } from "@/components/sections/PageHero";
 import { Section, Eyebrow } from "@/components/primitives/section";
 import { Cta } from "@/components/sections/Cta";
@@ -86,7 +86,7 @@ export async function generateMetadata({
   });
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     keywords: `${city.name} agency engagement process, ${city.name} fixed price web development, ${city.name} weekly demo cadence, ${city.name} development stack, hire web agency ${city.name}, ${city.name} digital agency process`,
     metadataBase: new URL(BASE_URL),

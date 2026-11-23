@@ -38,6 +38,8 @@ export function ServicesExperience({ copy: c, t, base }: { copy: ServicesCopy; t
       <div className={styles.industrialGrid}><div className={styles.industrialVisual} aria-hidden="true" dir="ltr"><IndustrialScene/></div><div><Chapter number="03">{c.chapters[2]}</Chapter><Heading id="industrial-services-title" lines={c.industrialTitle}/><p className={styles.lead}>{c.industrialIntro}</p><p className={styles.industrialFoot}>{c.industrialFoot}</p></div></div>
       <ol className={styles.industrialRail}>{c.industrialSteps.map((step,i)=><li key={step}><span>{String(i+1).padStart(2,"0")}</span>{step}{i<6&&<ArrowRight size={13} aria-hidden="true"/>}</li>)}</ol>
       <div className={styles.industrialNotes}>{c.industrialNotes.map((note,i)=><div key={note.title}><span className={styles.mono}>0{i+1}</span><h3>{note.title}</h3><p>{note.body}</p></div>)}</div>
+      {/* Product names, not translated: they are the same in every locale. */}
+      <div className={home.sectionBottom}><span>Factory Graph</span><Link href={`${base}/industrial-iot-digital-twins`} data-track="cta_click" data-track-label="Industrial IoT & Digital Twins" data-track-location="services-industrial">Industrial IoT &amp; Digital Twins<ArrowUpRight size={16} aria-hidden="true"/></Link></div>
     </div></section>
 
     <section className={`${styles.section} ${styles.catalogSection}`} aria-labelledby="catalog-title"><div className={home.container}>

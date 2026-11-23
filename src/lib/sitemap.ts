@@ -3,13 +3,16 @@ import {
   INDEXABLE_LOCALES,
   STATIC_PAGES,
   isIndexable,
+  isIndexableCountry,
 } from "@/lib/constants";
 import { BLOG_CATEGORIES, getAllBlogPosts, type BlogPost } from "@/lib/blogs";
 import { NEWS_CATEGORY_KEYS, getAllNewsPosts, type NewsPost } from "@/lib/news";
-import { INDIA_CITIES, getCityIndexableLocales } from "@/lib/cities";
+import { INDIA_CITIES, getCityIndexableLocales, getCityPageLocales } from "@/lib/cities";
 import { CITY_BLOG_POSTS } from "@/lib/city-blog";
 import { INDUSTRY_SLUGS } from "@/lib/industry-data";
 import { CITY_LASTMOD, INDUSTRY_LASTMOD, STATIC_PAGE_LASTMOD } from "@/lib/sitemap-lastmod";
+import { PLATFORM_LOCALES, PLATFORM_PAGES } from "@/lib/platform/pages";
+import { RESEARCH_LOCALES, RESEARCH_REPORTS, researchHref, researchHubLastmod } from "@/lib/research";
 import { SITE_ORIGIN, normalizePublicUrl } from "@/lib/public-url";
 import type { SitemapEntry } from "@/lib/sitemap-xml";
 
@@ -67,7 +70,7 @@ export async function loadSitemapContent(): Promise<SitemapContent> {
 
 /** One indexable page, before it is multiplied out across locales. */
 export interface IndexableRoute {
-  section: "pages" | "industries" | "cities" | "blog" | "newsroom";
+  section: "pages" | "platform" | "research" | "industries" | "cities" | "blog" | "newsroom";
   /** Path after `/{country}/{locale}`. */
   path: string;
   lastmod?: string;
@@ -119,6 +122,29 @@ export function getIndexableRoutes({ blogPosts, newsPosts }: SitemapContent): In
           : STATIC_PAGE_LASTMOD[path],
   }));
 
+  // The Factory Graph product pages. Listed only in the locales they are
+  // written in: on any other locale the page declares the English URL as its
+  // canonical (lib/platform/seo.ts), and a sitemap must not list a URL that
+  // points its canonical elsewhere.
+  const platform: IndexableRoute[] = PLATFORM_PAGES.map((page) => ({
+    section: "platform",
+    path: page.path,
+    lastmod: page.lastmod,
+    locales: PLATFORM_LOCALES,
+  }));
+
+  // The Research library: the hub and one URL per report. English only, by
+  // the same rule as the platform pages (lib/research/seo.ts).
+  const research: IndexableRoute[] = [
+    { section: "research", path: researchHref().slice(1), lastmod: researchHubLastmod(), locales: RESEARCH_LOCALES },
+    ...RESEARCH_REPORTS.map((report) => ({
+      section: "research" as const,
+      path: researchHref(report.slug).slice(1),
+      lastmod: report.updatedAt,
+      locales: RESEARCH_LOCALES,
+    })),
+  ];
+
   const industries: IndexableRoute[] = INDUSTRY_SLUGS.map((slug) => ({
     section: "industries",
     path: `industries/${slug}`,
@@ -137,11 +163,13 @@ export function getIndexableRoutes({ blogPosts, newsPosts }: SitemapContent): In
     const locales = getCityIndexableLocales(city);
     return [
       { section: "cities" as const, path: `cities/${city.slug}`, lastmod: CITY_LASTMOD, locales },
+      // City posts are English whatever the city's languages; listing the
+      // /hi/ copy would list a URL whose canonical is the English post.
       ...(CITY_BLOG_POSTS[city.slug] ?? []).map((post) => ({
         section: "cities" as const,
         path: `cities/${city.slug}/blog/${post.slug}`,
         lastmod: post.publishedAt,
-        locales,
+        locales: getCityPageLocales(city, `${city.slug}/blog/${post.slug}`),
       })),
     ];
   });
@@ -175,13 +203,17 @@ export function getIndexableRoutes({ blogPosts, newsPosts }: SitemapContent): In
     lastmod: newsDate(post),
   }));
 
-  return [...pages, ...industries, ...cities, ...blogCategories, ...blog, ...newsDesks, ...news];
+  return [...pages, ...platform, ...research, ...industries, ...cities, ...blogCategories, ...blog, ...newsDesks, ...news];
 }
 
 /** Every indexable URL under /{country}/, deduplicated, in inventory order. */
 export function buildCountrySitemap(country: SitemapCountry, content: SitemapContent): SitemapEntry[] {
   const seen = new Set<string>();
   const urls: SitemapEntry[] = [];
+  // Only canonical editions are listed: every other country's pages declare
+  // the /in/ copy as canonical, and a sitemap must never list a URL that
+  // points its canonical elsewhere.
+  if (!isIndexableCountry(country)) return urls;
   for (const route of getIndexableRoutes(content)) {
     for (const locale of route.locales ?? INDEXABLE_LOCALES) {
       if (!isIndexable(country, locale)) continue;

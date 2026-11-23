@@ -17,14 +17,14 @@
  * **Hindi indexability** — pages render in Hindi via `localizeCity()` only
  * when a `translations.hi` block exists AND `bodyLocales` includes "hi".
  * The global INDEXABLE_LOCALES gate in [src/lib/constants.ts](src/lib/constants.ts)
- * is "en"-only, but `isCityIndexable(city, locale)` overrides per-city, so a
- * single city with real Hindi body re-enters the /in/hi index without
- * flipping the global lever and re-exposing all the fake-Hindi pages we
- * demoted on 2026-05-09.
+ * is "en"-only, but `getCityIndexableLocales(city)` adds "hi" per-city, so a
+ * single city with real Hindi body keeps /in/hi/cities/{slug} as its own
+ * canonical without flipping the global lever and re-exposing all the
+ * fake-Hindi pages.
  */
 
 import type { Locale } from "@/lib/i18n";
-import { INDEXABLE_LOCALES, isIndexable } from "@/lib/constants";
+import { isIndexable } from "@/lib/constants";
 
 export interface CityFaq {
   q: string;
@@ -819,7 +819,7 @@ const AHMEDABAD: CityContent = {
   bodyLocales: ["en", "hi"],
   translations: {
     hi: {
-      metaTitle: "अहमदाबाद की सर्वश्रेष्ठ वेबसाइट डेवलपमेंट कंपनी · सनत डायनमो",
+      metaTitle: "अहमदाबाद की सर्वश्रेष्ठ वेबसाइट डेवलपमेंट कंपनी · Savin Group",
       metaDescription:
         "अहमदाबाद की शीर्ष वेब डेवलपमेंट और D2C एजेंसी। हम SG हाईवे, बोपल, वस्त्रापुर और प्रह्लाद नगर के SMEs के लिए टेक्सटाइल पोर्टल, फार्मा साइटें और रेवेन्यू फनल बनाते हैं। गुजराती भाषा में मूल।",
       heroSubheadline:
@@ -1193,38 +1193,47 @@ export function localizeCity(city: CityContent, locale: Locale): CityContent {
 }
 
 /**
- * Per-city indexability gate. Overrides the global INDEXABLE_LOCALES
- * (which is currently "en"-only after the 2026-05-09 hi demotion) so a
- * single city with a complete Hindi body block can re-enter the index for
- * /in/hi/cities/{slug} without exposing the other 9 fake-Hindi cities.
- *
- * - en  → always indexable (assuming country === "in")
- * - hi  → indexable ONLY if `bodyLocales` includes "hi" AND `translations.hi`
- *         exists. Both checks together prevent accidentally indexing a city
- *         that opted into hi without having actually written the Hindi body.
- * - other locales → never indexable for cities (city pages are India-only).
+ * May this city page carry `index, follow`? Same answer as every other page
+ * (`isIndexable`): yes for every rendered country and locale. Which copy
+ * Google keeps is decided by the canonical (`buildCityAlternates`), not by
+ * robots. The `city` argument stays for the ~10 call sites.
  */
 export function isCityIndexable(
   city: CityContent,
   country: string,
   locale: string
 ): boolean {
-  // Since 2026-09-09 city pages follow the same global country x locale
-  // gate as every other page — they are no longer pinned to /in/. The
-  // `city` argument is kept in the signature so per-city overrides can be
-  // reintroduced without touching the ~10 call sites.
   void city;
   return isIndexable(country, locale);
 }
 
 /**
- * The set of indexable locales for a given city. Used to build the
- * hreflang cluster on the city page metadata so the cluster stays
- * consistent with the actual indexability decisions.
+ * The languages a city's overview is written in: English, plus Hindi ONLY
+ * when `bodyLocales` includes "hi" AND `translations.hi` exists. Both checks
+ * together stop a city that opted in without writing the Hindi body from
+ * exposing a fake-Hindi page. Restored 2026-11-23 (the 2026-09-09 change had
+ * made every city "written" in all 8 locales, which is how /hi/, /gu/, /zh/
+ * city pages ended up among Search Console's 93,000 unindexed URLs).
  */
 export function getCityIndexableLocales(
   city: CityContent
-): ReadonlyArray<(typeof INDEXABLE_LOCALES)[number]> {
-  void city;
-  return INDEXABLE_LOCALES;
+): ReadonlyArray<"en" | "hi"> {
+  const hi = city.bodyLocales?.includes("hi") && !!city.translations?.hi;
+  return hi ? ["en", "hi"] : ["en"];
+}
+
+/**
+ * City sub-pages that render the localized city body (`localizeCity`). The
+ * others — about, the city blog index and its posts — are English whatever
+ * the locale, so only English is their own canonical.
+ */
+const LOCALIZED_CITY_SUBPAGES = new Set(["services", "process", "case-studies", "contact"]);
+
+/**
+ * The languages one city page is written in. `cityPath` is everything after
+ * `cities/`: `jaipur`, `jaipur/services`, `jaipur/blog/some-post`.
+ */
+export function getCityPageLocales(city: CityContent, cityPath: string): ReadonlyArray<"en" | "hi"> {
+  const sub = cityPath.split("/").filter(Boolean)[1];
+  return !sub || LOCALIZED_CITY_SUBPAGES.has(sub) ? getCityIndexableLocales(city) : ["en"];
 }

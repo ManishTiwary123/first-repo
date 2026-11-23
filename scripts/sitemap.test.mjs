@@ -57,8 +57,10 @@ const { SITE_ORIGIN, localizedPath, normalizePublicUrl } = await import("../src/
 const xml = await import("../src/lib/sitemap-xml.ts");
 const sitemap = await import("../src/lib/sitemap.ts");
 const { ALL_COUNTRIES, HREFLANG_COUNTRIES, INDEXABLE_COUNTRIES, INDEXABLE_LOCALES, isIndexable } = await import("../src/lib/constants.ts");
-const { getCityBySlug } = await import("../src/lib/cities.ts");
+const { INDIA_CITIES, getCityBySlug } = await import("../src/lib/cities.ts");
 const { buildAlternates, buildCityAlternates } = await import("../src/lib/seo.ts");
+const { buildPlatformAlternates } = await import("../src/lib/platform/seo.ts");
+const { PLATFORM_PAGES, PLATFORM_LOCALES } = await import("../src/lib/platform/pages.ts");
 const { checkXml, extractEntries, urlProblems } = await import("./validate-sitemaps.mjs");
 
 const SITE = new URL(SITE_ORIGIN);
@@ -135,8 +137,8 @@ test("each country sitemap lists only that country's indexable URLs", () => {
 });
 
 test("dynamic content drives the inventory", () => {
-  const byLoc = new Map(sitemap.buildCountrySitemap("ae", CONTENT).map((u) => [u.loc, u.lastmod]));
-  const at = (path, locale = "en") => `${SITE_ORIGIN}/ae/${locale}/${path}`;
+  const byLoc = new Map(sitemap.buildCountrySitemap("in", CONTENT).map((u) => [u.loc, u.lastmod]));
+  const at = (path, locale = "en") => `${SITE_ORIGIN}/in/${locale}/${path}`;
 
   for (const locale of INDEXABLE_LOCALES) assert.ok(byLoc.has(at("blogs/alpha", locale)), locale);
   assert.equal(byLoc.get(at("blogs/beta")), "2026-07-01", "updatedAt wins over publishedAt");
@@ -154,12 +156,36 @@ test("dynamic content drives the inventory", () => {
   assert.ok(!byLoc.has(at("ind-figures-preview")));
 
   const withoutAlpha = { ...CONTENT, blogPosts: CONTENT.blogPosts.filter((p) => p.slug !== "alpha") };
-  const after = sitemap.buildCountrySitemap("ae", withoutAlpha).map((u) => u.loc);
+  const after = sitemap.buildCountrySitemap("in", withoutAlpha).map((u) => u.loc);
   assert.ok(!after.includes(at("blogs/alpha")), "a deleted post disappears");
 
   const first = xml.renderUrlset(sitemap.buildCountrySitemap("in", CONTENT));
   const second = xml.renderUrlset(sitemap.buildCountrySitemap("in", CONTENT));
   assert.equal(first, second, "output is deterministic (no clock-based lastmod)");
+});
+
+test("Factory Graph pages are listed exactly where they are their own canonical", () => {
+  // The invariant, whatever the current set of canonical editions is: a
+  // sitemap lists a URL if and only if the page at that URL declares itself
+  // canonical. (buildCountrySitemap returns nothing for a non-edition country.)
+  let listed = 0;
+  for (const country of ["in", "us", "cv"]) {
+    const locs = new Set(sitemap.buildCountrySitemap(country, CONTENT).map((u) => u.loc));
+    for (const page of PLATFORM_PAGES) {
+      for (const locale of ["en", "hi", "de", "ar"]) {
+        const url = `${SITE_ORIGIN}/${country}/${locale}/${page.path}`;
+        const canonical = SITE_ORIGIN + buildPlatformAlternates({ country, locale, subPath: page.path }).canonical;
+        assert.equal(locs.has(url), canonical === url, `${url}: listed=${locs.has(url)} but its canonical is ${canonical}`);
+        if (locs.has(url)) listed++;
+        if (!PLATFORM_LOCALES.includes(locale)) assert.equal(locs.has(url), false, `${url}: an untranslated locale is never listed`);
+      }
+    }
+  }
+  assert.ok(listed >= PLATFORM_PAGES.length, "every page is listed at least once");
+  const byLoc = new Map(sitemap.buildCountrySitemap("in", CONTENT).map((u) => [u.loc, u.lastmod]));
+  for (const page of PLATFORM_PAGES) {
+    assert.equal(byLoc.get(`${SITE_ORIGIN}/in/en/${page.path}`), page.lastmod, page.path);
+  }
 });
 
 test("index lists one sitemap per indexable country and nothing else", () => {
@@ -170,10 +196,17 @@ test("index lists one sitemap per indexable country and nothing else", () => {
     const newest = sitemap.buildCountrySitemap(cc, CONTENT).map((u) => u.lastmod).filter(Boolean).sort().pop();
     assert.equal(entry.lastmod, newest, cc);
   }
-  assert.equal(index.length, ALL_COUNTRIES.length, "one sitemap per ISO country");
   assert.equal(index[0].loc, `${SITE_ORIGIN}/in/sitemap.xml`, "India leads the index");
   assert.equal(sitemap.isSitemapCountry("in"), true);
-  assert.equal(sitemap.isSitemapCountry("cv"), true, "non-target countries get a sitemap too");
+  assert.equal(sitemap.isSitemapCountry("cv"), false, "non-edition countries get no sitemap");
+  assert.deepEqual(sitemap.buildCountrySitemap("us", CONTENT), [], "…and list nothing if asked");
+
+  // Regression guard. With every ISO country x 8 locales listed, the sitemaps
+  // held ~93,000 URLs and Search Console left 72,660 of them "Discovered –
+  // currently not indexed" (2026-11). Widening INDEXABLE_COUNTRIES or
+  // INDEXABLE_LOCALES must be a deliberate, content-backed decision.
+  const total = index.reduce((n, e) => n + sitemap.buildCountrySitemap(new URL(e.loc).pathname.split("/")[1], CONTENT).length, 0);
+  assert.ok(total < 500, `the sitemaps list ${total} URLs`);
   assert.equal(sitemap.isSitemapCountry("IN"), false, "uppercase variants are not served");
   assert.equal(sitemap.isSitemapCountry("zz"), false, "unknown codes get no sitemap");
   assert.equal(sitemap.SITEMAP_INDEX_URL, `${SITE_ORIGIN}/sitemap-index.xml`);
@@ -189,7 +222,9 @@ test("every sitemap URL is the canonical its page declares, inside its hreflang 
         const segs = route.path.split("/");
         const alt = segs[0] === "cities" && segs.length > 1
           ? buildCityAlternates({ country, locale, city: getCityBySlug(segs[1]), cityPath: segs.slice(1).join("/") })
-          : buildAlternates({ country, locale, subPath: route.path });
+          : route.section === "platform"
+            ? buildPlatformAlternates({ country, locale, subPath: route.path })
+            : buildAlternates({ country, locale, subPath: route.path });
         const canonical = SITE_ORIGIN + alt.canonical;
         assert.ok(locs.has(canonical), `${canonical} missing from /${country}/sitemap.xml`);
         if (inCluster) {
@@ -202,11 +237,49 @@ test("every sitemap URL is the canonical its page declares, inside its hreflang 
       }
     }
   }
-  assert.ok(checked > 1000, `checked ${checked}`);
+  assert.ok(checked > 40, `checked ${checked}`);
 
   const cluster = buildAlternates({ country: "in", locale: "en", subPath: "services" }).languages;
   assert.equal(Object.keys(cluster).length, HREFLANG_COUNTRIES.length * INDEXABLE_LOCALES.length + 1, "cluster size stays bounded");
   assert.ok(!Object.keys(cluster).includes("en-CV"), "non-target countries stay out of the cluster");
   const noindex = buildAlternates({ country: "zz", locale: "en", subPath: "services" });
   assert.deepEqual(noindex, { canonical: "/zz/en/services" }, "noindex pages declare no cluster");
+});
+
+test("country and language copies point their canonical at the /in/ edition (Search Console, 2026-11)", () => {
+  // URLs taken from the "Discovered – currently not indexed" and "Duplicate,
+  // Google chose different canonical than user" exports. Each one called
+  // itself canonical; each must now name the one copy Google should keep.
+  const city = (country, locale, cityPath) =>
+    buildCityAlternates({ country, locale, city: getCityBySlug(cityPath.split("/")[0]), cityPath });
+  const cases = [
+    [buildAlternates({ country: "ae", locale: "en", subPath: "about" }), "/in/en/about"],
+    [buildAlternates({ country: "us", locale: "en", subPath: "pricing" }), "/in/en/pricing"],
+    [buildAlternates({ country: "in", locale: "ar", subPath: "services" }), "/in/en/services"],
+    [buildAlternates({ country: "in", locale: "hi", subPath: "blogs/schema-markup-that-moves-ctr" }), "/in/en/blogs/schema-markup-that-moves-ctr"],
+    [buildAlternates({ country: "ai", locale: "ar", subPath: "industries/manufacturing" }), "/in/en/industries/manufacturing"],
+    [city("mo", "hi", "pune"), "/in/en/cities/pune"],
+    [city("gb", "zh", "bengaluru"), "/in/en/cities/bengaluru"],
+    [city("ad", "es", "delhi/blog/5-minute-real-estate-routing"), "/in/en/cities/delhi/blog/5-minute-real-estate-routing"],
+    [buildPlatformAlternates({ country: "cv", locale: "de", subPath: "factory-graph" }), "/in/en/factory-graph"],
+  ];
+  for (const [alt, expected] of cases) {
+    assert.deepEqual(alt, { canonical: expected }, `${expected}: a copy declares the edition, and no cluster`);
+  }
+  for (const [country, locale] of [["us", "en"], ["mo", "hi"], ["in", "gu"]]) {
+    assert.equal(isIndexable(country, locale), true, `/${country}/${locale}/ stays index,follow; the canonical does the work`);
+  }
+
+  // A city with a hand-written Hindi body keeps its Hindi page as its own
+  // canonical, in a cluster with English — and its English-only posts do not.
+  const hiCity = INDIA_CITIES.find((c) => c.bodyLocales?.includes("hi") && c.translations?.hi);
+  assert.ok(hiCity, "one city has a Hindi body");
+  const hi = city("in", "hi", hiCity.slug);
+  assert.equal(hi.canonical, `/in/hi/cities/${hiCity.slug}`);
+  assert.deepEqual(Object.keys(hi.languages).sort(), ["en-IN", "hi-IN", "x-default"]);
+  assert.equal(city("us", "hi", hiCity.slug).canonical, `/in/hi/cities/${hiCity.slug}`);
+  assert.equal(city("in", "hi", `${hiCity.slug}/about`).canonical, `/in/en/cities/${hiCity.slug}/about`);
+  const locs = sitemap.buildCountrySitemap("in", CONTENT).map((u) => u.loc);
+  assert.deepEqual(locs.filter((l) => !l.includes("/in/en")), [`${SITE_ORIGIN}/in/hi/cities/${hiCity.slug}`],
+    "the only non-English URL listed is the one page actually written in Hindi");
 });

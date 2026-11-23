@@ -21,6 +21,7 @@ import {
   LOCALE_CODES,
 } from "@/lib/i18n";
 import { BASE_URL } from "@/lib/constants";
+import { getUrlGeo } from "@/lib/geo";
 import {
   INDIA_CITIES,
   getCityBySlug,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/cities";
 import { getCityIdentity } from "@/lib/city-identity";
 import { getCityOrganization } from "@/lib/city-organization";
-import { buildBreadcrumbJsonLd, buildCityAlternates } from "@/lib/seo";
+import { buildBreadcrumbJsonLd, buildCityAlternates, pageTitle } from "@/lib/seo";
 import { PageHero } from "@/components/sections/PageHero";
 import { Section, Eyebrow } from "@/components/primitives/section";
 import { ContactForm } from "@/components/sections/ContactForm";
@@ -83,7 +84,7 @@ export async function generateMetadata({
   });
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     keywords: `${city.name} contact, ${city.name} revenue audit, ${city.name} agency contact, book audit ${city.name}, ${city.name} consultation, ${city.name} WhatsApp agency`,
     metadataBase: new URL(BASE_URL),
@@ -443,7 +444,7 @@ export default async function CityContactPage({
             </div>
           </div>
           <div className="lg:col-span-7">
-            <ContactForm t={t} />
+            <ContactForm t={t} locale={lc} country={country} countryName={getUrlGeo(country, lc).countryName} formId={`city-${city.slug}`.slice(0, 40)} />
           </div>
         </div>
       </Section>

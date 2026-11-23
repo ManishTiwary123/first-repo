@@ -9,6 +9,7 @@ import { BRAND, SOCIAL_PROFILES } from "@/lib/constants";
 import { AUDIT, CTA_LABEL } from "@/lib/offer";
 import { FOOTER_COPY } from "./footer-copy";
 import { navigationCopy } from "./navigation-copy";
+import { PLATFORM_PAGES } from "@/lib/platform/pages";
 import styles from "./Footer.module.css";
 
 interface FooterProps { translations: Messages; }
@@ -43,9 +44,11 @@ export default function Footer({ translations: t }: FooterProps) {
   const companyLinks = t.footer.columns.company.links.filter((link) => link.href !== "/privacy" && link.href !== "/terms");
   const policyLabel = (href: string, fallback: string) => t.footer.columns.company.links.find((link) => link.href === href)?.label ?? fallback;
   const columns = [
+    // The Factory Graph product pages. Names are product names, in English.
+    { title: navigationCopy[locale].platform, links: PLATFORM_PAGES.map((page) => ({ label: page.nav, href: `/${page.path}` })) },
     t.footer.columns.services,
     t.footer.columns.industries,
-    { ...t.footer.columns.company, links: [...companyLinks, { label: copy.journal, href: "/blogs" }, { label: navigationCopy[locale].newsroom, href: "/newsroom" }] },
+    { ...t.footer.columns.company, links: [...companyLinks, { label: copy.journal, href: "/blogs" }, { label: navigationCopy[locale].research, href: "/research" }, { label: navigationCopy[locale].newsroom, href: "/newsroom" }] },
   ];
 
   return <footer className={styles.footer}>

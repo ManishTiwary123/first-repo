@@ -390,7 +390,11 @@ export default async function BlogDetailPage({
                   <div>
                     <h3>{ui.primaryKeyword}</h3>
                     <strong>{post.keywords.primary}</strong>
-                    <p>~{post.keywords.searchVolume.toLocaleString()} {ui.monthlySearchesLabel}</p>
+                    {/* 0 means "not measured": the research-desk posts carry no
+                        keyword-tool estimate, and none is invented for them. */}
+                    {post.keywords.searchVolume > 0 && (
+                      <p>~{post.keywords.searchVolume.toLocaleString()} {ui.monthlySearchesLabel}</p>
+                    )}
                   </div>
                   <div>
                     <h3>{ui.alsoAnswers}</h3>

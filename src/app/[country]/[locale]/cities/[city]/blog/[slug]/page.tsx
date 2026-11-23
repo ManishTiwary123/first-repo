@@ -25,6 +25,7 @@ import {
   buildBreadcrumbJsonLd,
   buildCityAlternates,
   buildFaqJsonLd,
+  pageTitle,
 } from "@/lib/seo";
 import { PageHero } from "@/components/sections/PageHero";
 import { Section, Eyebrow } from "@/components/primitives/section";
@@ -78,7 +79,7 @@ export async function generateMetadata({
   });
 
   return {
-    title: `${post.title} · ${city.name} Journal · Savin Group`,
+    title: pageTitle(`${post.title} · ${city.name} Journal · Savin Group`),
     description: post.excerpt,
     keywords: post.keywords.join(", "),
     metadataBase: new URL(BASE_URL),

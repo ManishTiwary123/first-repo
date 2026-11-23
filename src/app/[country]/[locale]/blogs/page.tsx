@@ -195,7 +195,9 @@ export default async function BlogsIndexPage({
       .map((slug) => getBlogPost(BLOG_POSTS, slug))
       .filter((p): p is BlogPost => !!p)
       .map((p) => localizePost(p, loc)),
-  }));
+    // A cluster whose posts are not published yet (or were unpublished) is
+    // hidden rather than shown as an empty heading.
+  })).filter((cluster) => cluster.posts.length > 0);
 
   const tags = Array.from(new Set(postsLocalized.flatMap((p) => p.tags)));
 
@@ -292,7 +294,7 @@ export default async function BlogsIndexPage({
           stats={[
             { label: ui.statsLongForm, value: BLOG_POSTS.length },
             { label: ui.statsAvgRead, value: avgReadTime, unit: ui.minRead },
-            { label: ui.statsTopics, value: TOPIC_CLUSTERS.length },
+            { label: ui.statsTopics, value: clusters.length },
             { label: ui.statsMonthlySearches, value: totalSearchVolume.toLocaleString(), accent: true },
           ]}
         />

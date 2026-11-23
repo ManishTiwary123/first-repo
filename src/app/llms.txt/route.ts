@@ -2,6 +2,9 @@ import { getTranslation } from "@/lib/i18n";
 import { INDUSTRY_DATA, INDUSTRY_SLUGS } from "@/lib/industry-data";
 import { INDIA_CITIES } from "@/lib/cities";
 import { SITE_ORIGIN, normalizePublicUrl } from "@/lib/public-url";
+import { PLATFORM_PAGES } from "@/lib/platform/pages";
+import { RESEARCH_REPORTS, researchHref } from "@/lib/research";
+import { LLMS_FULL_URL, companyFacts, llmsTextResponse } from "@/lib/llms";
 
 // /llms.txt (https://llmstxt.org): a Markdown map of the site for language
 // models and agents. Lighthouse's `llms-txt` audit requires an H1, at least
@@ -24,6 +27,12 @@ function render(): string {
     "",
     t.seo.description,
     "",
+    `The complete text of every page below (services, Factory Graph, industries, pricing, FAQs, articles) is in one file: [llms-full.txt](${LLMS_FULL_URL}).`,
+    "",
+    "## Company facts",
+    "",
+    ...companyFacts(),
+    "",
     "Every page is published per market and language at /{country}/{locale}/ (for example /us/en/ or /in/hi/). The links below use the default edition, India in English.",
     "",
     "## Main pages",
@@ -35,6 +44,17 @@ function render(): string {
     `- [Case studies](${page("case-studies")}): delivered projects and their results`,
     `- [About](${page("about")}): the team and how we work`,
     `- [Contact](${page("contact")}): start a project or ask a question`,
+    "",
+    "## Factory Graph platform",
+    "",
+    "Factory Graph is the layer that connects the machines, digital twins, CAD/CAM, ERP and CRM a manufacturer already runs. Machine connections are read-only, and the interactive examples on these pages use simulated or example data and are labelled as such.",
+    "",
+    ...PLATFORM_PAGES.map((entry) => `- [${entry.nav}](${page(entry.path)}): ${entry.description}`),
+    "",
+    "## Research",
+    "",
+    `- [Research library](${page(researchHref().slice(1))}): long-form, source-linked reports on the software every department runs and what AI agents actually do`,
+    ...RESEARCH_REPORTS.map((report) => `- [${report.title}](${page(researchHref(report.slug).slice(1))}): ${report.description}`),
     "",
     "## Industries",
     "",
@@ -63,9 +83,5 @@ function render(): string {
 }
 
 export function GET() {
-  return new Response(render(), {
-    // text/plain rather than text/markdown: browsers download the latter
-    // instead of showing it.
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+  return llmsTextResponse(render());
 }

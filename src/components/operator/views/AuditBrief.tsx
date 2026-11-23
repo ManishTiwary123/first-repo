@@ -2,9 +2,10 @@
 
 // components/operator/views/AuditBrief.tsx
 //
-// The lead handoff, and the one place the Operator could overclaim. The site
-// has no lead backend (the contact form's submit is a timer), so NOTHING is
-// sent from here: the card says so first, then offers the visitor ways to
+// The lead handoff, and the one place the Operator could overclaim. The
+// Operator does not submit leads itself (the site's enquiry forms post to
+// /api/leads; this card does not), so NOTHING is sent from here: the card
+// says so first, then offers the visitor ways to
 // send it themselves — a wa.me link, a mailto: link, copy, download — each
 // showing exactly where it goes. The destinations come from the server's
 // `channels` (the site's published contact details), never from the model.

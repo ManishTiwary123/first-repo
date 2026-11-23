@@ -44,15 +44,34 @@ const NEAREST_TARGET: Record<string, string> = {
 };
 
 /**
- * Check if a user-agent is a known search-engine bot. Bots don't send
- * `x-vercel-ip-country`, so we skip the external IP API call entirely for
- * them and honor the URL country directly. This cuts Googlebot TTFB and
+ * AI crawlers and AI-assistant fetchers. They are allowed in robots.ts so the
+ * site can be read and cited by ChatGPT, Claude, Perplexity, Gemini, Copilot
+ * and others; listed here so they get the same fast path as search bots
+ * instead of waiting up to 2 s on the external IP lookup before the redirect.
+ * Some of these fetch live while a user waits for an answer, and a slow or
+ * timed-out page is simply left out of that answer.
+ */
+const AI_CRAWLER_TOKENS = [
+  "gptbot", "oai-searchbot", "chatgpt-user", // OpenAI
+  "claudebot", "claude-searchbot", "claude-user", // Anthropic
+  "perplexitybot", "perplexity-user", // Perplexity
+  "google-cloudvertexbot", "googleother", // Google AI
+  "ccbot", // Common Crawl, the base of most training corpora
+  "amazonbot", "meta-externalagent", "meta-externalfetcher",
+  "duckassistbot", "mistralai-user", "cohere-ai", "youbot",
+];
+
+/**
+ * Check if a user-agent is a known search-engine or AI crawler. Bots don't
+ * send `x-vercel-ip-country`, so we skip the external IP API call entirely
+ * for them and honor the URL country directly. This cuts crawler TTFB and
  * preserves crawl budget.
  */
 function isSearchEngineBot(userAgent: string | null): boolean {
   if (!userAgent) return false;
   const ua = userAgent.toLowerCase();
   return (
+    AI_CRAWLER_TOKENS.some((token) => ua.includes(token)) ||
     ua.includes("googlebot") ||
     ua.includes("bingbot") ||
     ua.includes("duckduckbot") ||

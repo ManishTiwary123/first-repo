@@ -38,7 +38,10 @@ export async function generateMetadata({
   const description = "Savin Group connects custom software, AI, ERP and industrial systems to reduce manual work and give growing businesses clearer, faster operations.";
   return {
     ...metadata,
-    title,
+    // The homepage shares the layout's route segment, so the layout's
+    // "%s · Savin Group" template does not apply here: name the brand
+    // explicitly, or the most important page's title omits it.
+    title: `${title} · Savin Group`,
     description,
     keywords: "industrial automation, AI agents, IoT, ERP, custom software, workflow automation, business intelligence, systems integration, digital transformation",
     openGraph: { ...metadata.openGraph, title: `${title} · Savin Group`, description },

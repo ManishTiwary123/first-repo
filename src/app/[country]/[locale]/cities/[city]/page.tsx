@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslation, type Locale, LOCALE_CODES } from "@/lib/i18n";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL, ORGANIZATION_ID } from "@/lib/constants";
 import { INDIA_CITIES, getCityBySlug, isCityIndexable, localizeCity, type CityContent } from "@/lib/cities";
 import { getCityExtras } from "@/lib/city-extras";
 import { getCityIdentity } from "@/lib/city-identity";
 import { getCityOrganization } from "@/lib/city-organization";
-import { buildBreadcrumbJsonLd, buildCityAlternates, buildFaqJsonLd } from "@/lib/seo";
+import { buildBreadcrumbJsonLd, buildCityAlternates, buildFaqJsonLd, pageTitle } from "@/lib/seo";
 import { CityExperience } from "@/components/cities/CityExperience";
 
 const CITIES_PATH = "cities";
@@ -65,7 +65,7 @@ export async function generateMetadata({
   });
 
   return {
-    title: city.metaTitle,
+    title: pageTitle(city.metaTitle),
     description: city.metaDescription,
     keywords: city.metaKeywords,
     metadataBase: new URL(BASE_URL),
@@ -189,6 +189,7 @@ function CityJsonLd({
     description: city.metaDescription,
     provider: {
       "@type": "Organization",
+      "@id": ORGANIZATION_ID,
       name: t.brand.name,
       url: BASE_URL,
       telephone: t.contact.details.phone,

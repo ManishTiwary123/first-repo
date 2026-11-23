@@ -1,181 +1,73 @@
-"use client";
+import type { Locale, Messages } from "@/lib/i18n";
+import { AFTER_ENQUIRY } from "@/lib/offer";
+import { LeadForm } from "@/components/leads/LeadForm";
+import { getLeadFormCopy, type LeadFormCopy } from "@/components/leads/lead-form-copy";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, CheckCircle2, Loader2 } from "lucide-react";
-import type { Messages } from "@/lib/i18n";
-
-export function ContactForm({ t }: { t: Messages }) {
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
-  const f = t.contact.form;
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setSubmitting(false);
-    setDone(true);
-  }
-
-  if (done) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex min-h-[540px] flex-col items-center justify-center rounded-2xl border border-border-strong bg-background p-10 text-center shadow-xl"
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 180, delay: 0.1 }}
-          className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-strong text-accent-foreground"
-        >
-          <CheckCircle2 size={32} strokeWidth={2} />
-        </motion.div>
-        <h3 className="mt-6 font-display text-2xl font-semibold text-foreground">
-          Message received.
-        </h3>
-        <p className="mx-auto mt-3 max-w-xs text-sm text-muted-foreground">
-          We&apos;ll respond within one business day with a slot to walk through your business.
-        </p>
-      </motion.div>
-    );
-  }
-
-  return (
-    <form
-      onSubmit={onSubmit}
-      className="overflow-hidden rounded-2xl border border-border-strong bg-background shadow-xl"
-    >
-      {/* Header */}
-      <div className="border-b border-border bg-surface-2 px-6 py-5 sm:px-8 sm:py-6">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent-strong">
-            Revenue Audit Request
-          </span>
-        </div>
-        <h3 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-          Let&apos;s talk about your business
-        </h3>
-      </div>
-
-      {/* Body */}
-      <div className="space-y-5 px-6 py-7 sm:px-8 sm:py-8">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <FormField label={f.name}>
-            <input
-              required
-              name="name"
-              type="text"
-              placeholder="Jane Doe"
-              className="form-input"
-            />
-          </FormField>
-          <FormField label={f.email}>
-            <input
-              required
-              name="email"
-              type="email"
-              placeholder="jane@company.com"
-              className="form-input"
-            />
-          </FormField>
-          <FormField label={f.company}>
-            <input
-              required
-              name="company"
-              type="text"
-              placeholder="Acme Inc."
-              className="form-input"
-            />
-          </FormField>
-          <FormField label={f.industry}>
-            <div className="relative">
-              <select
-                required
-                name="industry"
-                defaultValue=""
-                className="form-input appearance-none pr-10"
-              >
-                <option value="" disabled>Select…</option>
-                {f.industries.map((i) => (
-                  <option key={i} value={i}>{i}</option>
-                ))}
-              </select>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </div>
-          </FormField>
-        </div>
-
-        <FormField label={f.challenge}>
-          <textarea
-            required
-            name="challenge"
-            rows={4}
-            placeholder="Our website doesn't convert, we're burning money on ads, our team is buried in manual work…"
-            className="form-input resize-none py-3"
-            style={{ height: "auto" }}
-          />
-        </FormField>
-      </div>
-
-      {/* Footer */}
-      <div className="flex flex-col items-stretch gap-4 border-t border-border bg-surface-2 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-        <p className="order-2 text-center text-xs text-muted-foreground sm:order-1 sm:text-left">
-          Replies within 1 business day · Data never shared
-        </p>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="group order-1 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent-strong px-8 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/25 transition-all hover:shadow-xl hover:shadow-accent/35 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:order-2 sm:rounded-full"
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            {submitting ? (
-              <motion.span key="l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin" />
-                {f.submitting}
-              </motion.span>
-            ) : (
-              <motion.span key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                {f.submit}
-                <ArrowUpRight size={16} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function FormField({
-  label,
-  children,
+/**
+ * The general contact form, on /contact and on each city's contact page.
+ *
+ * WHAT CHANGED. This component used to wait 900 ms and show "Message
+ * received." without sending anything: every enquiry made through it was
+ * lost, and the visitor was told otherwise. It is now a thin wrapper around
+ * LeadForm, which posts to /api/leads and reports what the server actually
+ * said (see components/leads/LeadForm.tsx and lib/leads/pipeline.ts).
+ *
+ * It keeps the labels this form already had in every locale
+ * (`t.contact.form`), and takes the rest from lead-form-copy.ts.
+ *
+ * A server component: it only assembles props. `countryName` prefills the
+ * country field from the market in the URL, and the visitor can change it.
+ */
+export function ContactForm({
+  t,
+  locale,
+  country,
+  countryName,
+  formId = "contact",
 }: {
-  label: string;
-  children: React.ReactNode;
+  t: Messages;
+  locale: Locale;
+  /** The `/{country}/` segment of the URL. */
+  country: string;
+  countryName: string;
+  /** Names the form in the stored lead, e.g. "contact" or "city-pune". */
+  formId?: string;
 }) {
+  const f = t.contact.form;
+  const copy: LeadFormCopy = {
+    ...getLeadFormCopy(locale),
+    name: f.name,
+    email: f.email,
+    company: f.company,
+    industry: f.industry,
+    challenge: f.challenge,
+    submit: f.submit,
+    submitting: f.submitting,
+    // The English page keeps the heading and the prompt it has always had.
+    ...(locale === "en"
+      ? {
+          eyebrow: "Revenue Audit Request",
+          title: "Let's talk about your business",
+          challengePlaceholder:
+            "Our website doesn't convert, we're burning money on ads, our team is buried in manual work, our systems don't talk to each other…",
+        }
+      : {}),
+  };
+
   return (
-    <label className="block">
-      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
+    <LeadForm
+      locale={locale}
+      market={country}
+      formId={formId}
+      copy={copy}
+      industries={f.industries}
+      defaultCountry={countryName}
+      systems="collapsed"
+      contact={{ email: t.contact.details.email, phone: t.contact.details.phone }}
+      // lib/offer.ts is English-only; other locales show the reference and the
+      // translated confirmation without the step list.
+      nextSteps={locale === "en" ? AFTER_ENQUIRY : undefined}
+      tone="site"
+    />
   );
 }

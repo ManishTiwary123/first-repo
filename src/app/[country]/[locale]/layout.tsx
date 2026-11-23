@@ -31,6 +31,7 @@ import Header from "@/components/common/header";
 import type { CityNavItem } from "@/components/common/MegaMenu";
 import Footer from "@/components/common/footer";
 import OperatorRoot from "@/components/operator/OperatorRoot";
+import { Analytics } from "@/components/common/Analytics";
 import { isOperatorEnabled } from "@/lib/operator/config";
 import { INDIA_CITIES } from "@/lib/cities";
 import { getCityIdentity } from "@/lib/city-identity";
@@ -197,13 +198,11 @@ export async function generateMetadata({
       title: t.seo.title,
       description: t.seo.description,
     },
-    // Every country x locale in INDEXABLE_COUNTRIES x INDEXABLE_LOCALES is
-    // indexed: every ISO country x all 8 locales. Anything outside those sets
-    // (only unknown codes) still resolves but ships `noindex,follow`.
-    //
-    // This is the indexability lever. Widening it is cheap; what makes the
-    // widened surface hold up is content parity — see the note on
-    // INDEXABLE_LOCALES in constants.ts.
+    // `index` on every rendered country x locale; the canonical (built by
+    // `buildAlternates`) points every variant at its /in/ edition, which is
+    // how Google is told which copy to keep. Only unknown codes ship
+    // `noindex,follow`. The lever is INDEXABLE_COUNTRIES / INDEXABLE_LOCALES
+    // in constants.ts — read the notes there before widening it.
     robots: isIndexable(country, locale)
       ? {
           index: true,
@@ -335,6 +334,9 @@ export default async function LocaleLayout({
         />
         <main className="flex-grow">{children}</main>
         <Footer translations={t} />
+        {/* Attribution capture, CTA click events and (only when
+            NEXT_PUBLIC_GA_MEASUREMENT_ID is set) the GA4 tag. */}
+        <Analytics />
         {/* Savin Operator. After the footer so its launcher is last in the
             tab order and never precedes page content; it also shows on
             not-found. OPERATOR_ENABLED="false" removes it site-wide (the

@@ -22,7 +22,8 @@
 .auditIntro > div > span { display: block; margin-top: 6px; color: var(--footer-muted); font-size: 11px; line-height: 1.6; }
 .auditLink { display: inline-flex; align-items: center; justify-content: space-between; gap: 40px; min-height: 47px; padding: 11px 0 11px 17px; font-size: 12px; font-weight: 500; flex-shrink: 0; }
 .auditLink svg { color: var(--footer-accent); }
-.main { display: grid; grid-template-columns: 1.7fr 1fr 1fr .85fr; gap: 40px; padding-block: 44px 37px; }
+/* Brand + four link columns (Platform, Services, Industries, Company). */
+.main { display: grid; grid-template-columns: 1.5fr 1.15fr 1fr 1fr .8fr; gap: 32px; padding-block: 44px 37px; }
 .brand { min-width: 0; }
 .brandLink { display: inline-flex; align-items: center; min-height: 48px; }
 .logo { --foreground: var(--footer-ink); --accent: var(--footer-accent); --muted-foreground: var(--footer-muted); }
@@ -67,7 +68,7 @@
 }
 
 @media (max-width: 1100px) {
-  .main { gap: 27px; grid-template-columns: 1.5fr 1fr 1fr .85fr; }
+  .main { gap: 22px; grid-template-columns: 1.3fr 1.15fr 1fr 1fr .8fr; }
   .inner { padding-inline: 28px; }
   .phoneRow { gap: 0 12px; }
   .cityRow { gap: 24px; }
@@ -75,7 +76,7 @@
 }
 
 @media (max-width: 850px) {
-  .main { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 35px; }
+  .main { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 24px; }
   .brand { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 0 40px; padding-bottom: 25px; border-bottom: 1px solid var(--footer-line); }
   .brandLink { grid-column: 1; grid-row: 1; justify-self: start; }
   .mission { grid-column: 1; grid-row: 2; max-width: 340px; margin-top: 15px; }
@@ -87,6 +88,10 @@
   .cityLabel { flex-basis: 100%; padding-bottom: 4px; }
   .cityRow ul { gap: 0 20px; }
   .bottom > p { max-width: 410px; }
+}
+
+@media (max-width: 700px) {
+  .main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -105,9 +110,7 @@
   .phoneRow a { font-size: 11px; }
   .column h2 { margin-bottom: 9px; }
   .column li > a { font-size: 11px; }
-  .column:last-child { grid-column: 1 / -1; border-top: 1px solid var(--footer-line); padding-top: 20px; }
-  .column:last-child ul { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
-  .column:last-child li > a { justify-content: flex-start; }
+  /* Four link columns sit two by two; no column needs to span the row. */
   .cityRow { gap: 0 22px; padding-block: 17px 13px; }
   .cityRow ul { gap: 0 20px; }
   .cityRow li a { font-size: 10px; }

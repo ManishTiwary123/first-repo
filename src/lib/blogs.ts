@@ -174,6 +174,51 @@ export const TOPIC_CLUSTERS: {
     ],
     primaryKeyword: "seo strategy india",
   },
+  // The research-desk clusters. Each is the spoke set of one or two reports in
+  // the Research library (/research, lib/research); the posts themselves are
+  // seeded from supabase/research-posts.seed.ts. A cluster with no published
+  // post is hidden on the blog index.
+  {
+    key: "factory-software",
+    title: "Factory software & the knowledge graph",
+    description:
+      "What small and mid-sized manufacturers actually run, how far text-to-CAD has come, and how Palantir-style ontologies and context graphs model a factory as one connected graph.",
+    slugs: [
+      "palantir-ontology-explained",
+      "context-graphs-decision-traces",
+      "text-to-cad-benchmarks-2026",
+      "indian-msme-software-adoption-2026",
+      "solidworks-in-browser-streaming-licences",
+    ],
+    primaryKeyword: "manufacturing software",
+  },
+  {
+    key: "ai-agents",
+    title: "AI agents in ERP, CRM & operations",
+    description:
+      "What agents really do inside business systems in 2026: MCP access to the ERP, prompt injection and the controls that stop it, agent orchestration platforms, and when several agents beat one.",
+    slugs: [
+      "mcp-for-erp-crm-agents",
+      "prompt-injection-crm-ai-agents",
+      "paperclip-ai-review-company-of-agents",
+      "multi-agent-systems-evidence",
+      "mcp-apps-generative-ui-a2ui",
+    ],
+    primaryKeyword: "ai agents erp crm",
+  },
+  {
+    key: "software-stack",
+    title: "The business software stack",
+    description:
+      "SaaS sprawl and what it costs, open-source licence risk, agentic commerce standards and per-resolution AI support pricing — the stack a growing company pays for, checked against sources.",
+    slugs: [
+      "saas-sprawl-statistics-2026",
+      "open-source-licence-risk-agpl-bsl-sspl",
+      "agentic-commerce-ucp-acp-explained",
+      "ai-support-agent-pricing-per-resolution",
+    ],
+    primaryKeyword: "saas stack",
+  },
 ];
 
 // ---------------------------------------------------------------------------

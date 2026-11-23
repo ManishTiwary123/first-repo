@@ -33,7 +33,19 @@ Your site has a **strong SEO foundation** but is missing critical **India-specif
 
 ## Priority 1: Immediate Wins (Complete by 2026-08-15)
 
-### 1.1: Enhanced LocalBusiness Schema on City Pages
+### 1.1: Enhanced LocalBusiness Schema on City Pages — ❌ WITHDRAWN (2026-11-23)
+
+> **Do not implement this section.** The plan below publishes an invented
+> 4.9 rating, "50+" reviews and a 5-star Review per testimonial. Google does
+> not show review stars for reviews a business publishes about itself
+> (self-serving reviews on LocalBusiness/Organization), and fabricated
+> ratings risk a structured-data manual action. A LocalBusiness also needs a
+> real street address, which the business does not publish. City pages emit
+> `Service` + `areaServed` instead (see the notes in the city page and
+> layout). The helper functions listed below were removed from `seo.ts`
+> because each one carried placeholder or invented data. Stars come from a
+> Google Business Profile with genuine reviews, not markup.
+
 **Impact**: ~2-3% SERP CTR improvement + 3-pack eligibility  
 **Effort**: 2-3 hours
 
@@ -68,12 +80,10 @@ The LocalBusiness schema already exists but needs enhancement:
 }
 ```
 
-**✅ DONE**: Enhanced schema functions added to `src/lib/seo.ts`:
-- `buildCityLocalBusinessJsonLd()` — enriched LocalBusiness
-- `buildCityBreadcrumbJsonLd()` — breadcrumb structure
-- `buildCityFaqJsonLd()` — FAQ with position/category
-
-**Next Step**: Update city page component to use these functions.
+~~Enhanced schema functions added to `src/lib/seo.ts`~~ — removed 2026-11-23
+(`buildCityLocalBusinessJsonLd`, `buildCityBreadcrumbJsonLd`,
+`buildCityFaqJsonLd`; see the warning above). City pages already emit
+breadcrumbs and FAQ markup through `buildBreadcrumbJsonLd` / `buildFaqJsonLd`.
 
 ### 1.2: Breadcrumb Schema on All Pages
 **Impact**: Improved SERP display + better crawlability  
@@ -94,7 +104,7 @@ Breadcrumbs already exist in code but need structured data:
 }
 ```
 
-✅ **DONE**: `buildCityBreadcrumbJsonLd()` function ready.
+✅ **DONE**: city and site pages emit BreadcrumbList via `buildBreadcrumbJsonLd()`.
 
 ### 1.3: India Geo-Targeting Meta Tags
 **Impact**: Search Console recognition + India-first indexing  

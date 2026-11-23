@@ -91,7 +91,7 @@ export async function GET() {
                 textTransform: "uppercase" as const,
               }}
             >
-              Revenue Systems
+              Systems Engineering
             </span>
           </div>
         </div>
@@ -107,7 +107,7 @@ export async function GET() {
             maxWidth: 800,
           }}
         >
-          We Build Revenue Systems.
+          Your operations.
         </div>
         <div
           style={{
@@ -116,52 +116,40 @@ export async function GET() {
             lineHeight: 1.1,
             letterSpacing: "-0.03em",
             background: "linear-gradient(135deg, #E8B84D, #D9A032, #B87A1E)",
+            // The text clip ends at the line box; without this the g and y
+            // descenders of "Intelligently" are cut off.
+            paddingBottom: 12,
             backgroundClip: "text",
             color: "transparent",
           }}
         >
-          Not Just Websites.
+          Intelligently connected.
         </div>
 
-        {/* Stats bar */}
+        {/* Capability band — the homepage hero's four pillars. Not figures:
+            this card is attached to every shared link, so it states only
+            what the business does, never numbers a reader cannot check. */}
         <div
           style={{
             display: "flex",
-            gap: 48,
+            gap: 40,
             marginTop: 48,
             borderTop: "1px solid rgba(255,255,255,0.08)",
             paddingTop: 32,
           }}
         >
-          {[
-            { value: "50+", label: "Businesses" },
-            { value: "₹40Cr+", label: "Revenue Impact" },
-            { value: "200%", label: "Avg ROI" },
-            { value: "5", label: "Industries" },
-          ].map((stat) => (
-            <div key={stat.label} style={{ display: "flex", flexDirection: "column" }}>
-              <span
-                style={{
-                  fontSize: 32,
-                  fontWeight: 700,
-                  color: "#F5F5F5",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {stat.value}
-              </span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: "#888",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase" as const,
-                  marginTop: 4,
-                }}
-              >
-                {stat.label}
-              </span>
-            </div>
+          {["Industrial & IoT", "AI & automation", "ERP & software", "Data & integrations"].map((pillar) => (
+            <span
+              key={pillar}
+              style={{
+                fontSize: 22,
+                fontWeight: 600,
+                color: "#F5F5F5",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {pillar}
+            </span>
           ))}
         </div>
 

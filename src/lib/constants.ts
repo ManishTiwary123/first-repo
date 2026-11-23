@@ -50,36 +50,41 @@ export const ALL_COUNTRIES = [
 ] as const;
 
 /**
- * Countries we want Google to actually INDEX. Every country here gets:
- *   - an entry in the sitemap index
- *   - a per-country sitemap.xml
- *   - `index,follow` robots metadata on every page
+ * The country editions Google should INDEX — the "canonical editions". Each
+ * one gets an entry in the sitemap index, its own sitemap, and self-canonical
+ * pages. Every other country still renders (a visitor on /us/en/pricing sees
+ * the US page), but its pages declare the /in/ copy as their canonical, so
+ * Google files them as "Alternate page with proper canonical tag" and puts
+ * every ranking signal on one URL.
  *
- * Opened to the full resolvable set on 2026-09-09 (previously `["in"]`), and
- * to every country in ALL_COUNTRIES on 2026-09-29, when the sitemap index
- * went back to listing every ISO code as it did Feb–Apr 2026. The resolvable
- * markets come first so they lead the sitemap index; the rest follow in
- * ALL_COUNTRIES order.
+ * WHY ONLY INDIA (2026-11-23). From 2026-09-29 this list held every ISO code,
+ * and the sitemaps listed ~93,000 URLs: each page × ~250 countries × 8
+ * locales. Search Console's verdict, from the 2026-11 export:
+ *   - "Discovered – currently not indexed" went from 38 to 93,275 the week
+ *     the sitemaps grew, and 72,660 were still never crawled two months on.
+ *     Google will not spend crawl budget on tens of thousands of copies.
+ *   - "Duplicate, Google chose different canonical than user" on the copies
+ *     it did crawl — including hreflang markets (/ae/en/about, /au/en/terms).
+ *     Each copy called itself canonical; Google disagreed.
+ * The country variants differ only in a few market blocks and a place name in
+ * the title, and the .in ccTLD already geo-targets the whole site to India
+ * (Google does not let subfolders on a ccTLD target other countries), so the
+ * extra editions could only ever compete with /in/, never rank alongside it.
  *
- * The .in TLD still pins the site to India in Google's eyes. Only the
- * HREFLANG_COUNTRIES markets are held apart from /in/ by an hreflang cluster;
- * the others are indexable with a self-canonical and no cluster, so Google
- * decides for itself whether they are duplicates of /in/.
+ * TO ADD A MARKET BACK: give it genuinely different content first, then add
+ * its code here. The sitemap, canonicals and hreflang cluster all follow.
  */
-export const INDEXABLE_COUNTRIES: readonly (typeof ALL_COUNTRIES)[number][] = [
-  ...RESOLVABLE_COUNTRIES,
-  ...ALL_COUNTRIES.filter((c) => !(RESOLVABLE_COUNTRIES as readonly string[]).includes(c)),
-];
+export const INDEXABLE_COUNTRIES: readonly (typeof ALL_COUNTRIES)[number][] = ["in"];
+
+/** The edition every non-indexable country variant points its canonical at. */
+export const PRIMARY_COUNTRY = INDEXABLE_COUNTRIES[0];
 
 /**
  * Countries in the hreflang cluster that `buildAlternates` (seo.ts) emits.
- * Every member page lists every other member for every indexable locale, so
- * the tag count is |HREFLANG_COUNTRIES| x |INDEXABLE_LOCALES| per page — 96
- * today. Spanning all of INDEXABLE_COUNTRIES would put ~2,000 alternate tags
- * in every page's <head>, so the cluster stays on the markets with real
- * country-specific content.
+ * Only canonical editions can be cluster members: a page whose canonical
+ * points elsewhere cannot carry hreflang, or Google discards the cluster.
  */
-export const HREFLANG_COUNTRIES = RESOLVABLE_COUNTRIES;
+export const HREFLANG_COUNTRIES = INDEXABLE_COUNTRIES;
 
 /**
  * Locales the site can RESOLVE. Adding a new language = add it here AND in
@@ -90,26 +95,27 @@ export const RESOLVABLE_LOCALES = [
 ] as const;
 
 /**
- * Locales we want Google to actually INDEX. Other locales resolve but ship
- * `noindex` so Google doesn't fold near-duplicate translation fallbacks
- * back into the canonical English pages.
+ * Languages the whole site is actually WRITTEN in. A page in any other locale
+ * still renders, but declares its English copy as canonical (see
+ * `buildAlternates` in seo.ts). A single page can be written in more
+ * languages than this — a city with a hand-written Hindi body passes its own
+ * list (`getCityIndexableLocales`) — but never in fewer.
  *
- * Currently EN-only. `hi` was demoted on 2026-05-09 because blog post bodies
- * (`sections`, `takeaways`, `faq` in [src/lib/blogs.ts](src/lib/blogs.ts))
- * are English-only — `localizePost` only swaps title/subtitle/excerpt, so
- * /in/hi/blogs/* shipped Hindi titles + ~2000 words of English body, which
- * Google reads as either a near-duplicate of /in/en or a low-quality
- * machine-translation fallback. Re-add `hi` per locale once real Hindi
- * bodies exist (start with the manufacturing pillar). `gu` gets promoted
- * here once the Ahmedabad pillar pages have hand-written GU content.
+ * WHY ENGLISH ONLY (2026-11-23). Measured against en.json, the other locale
+ * files hold: hi 40%, es/fr/de 45%, ar/zh 39%, gu 1% of the keys. Every
+ * missing key falls back to English, and blog, industry, newsroom and
+ * Factory Graph bodies are English in every locale. So /in/hi/services is
+ * mostly the English page with a Hindi header, and Search Console listed
+ * those URLs among the 93,000 "Discovered – currently not indexed".
  *
- * Opened to the full resolvable set on 2026-09-09 — every locale the site
- * can render is now indexed, so this tracks RESOLVABLE_LOCALES. The content
- * caveat above still stands as a standing TODO: hi/gu/zh/ar/es/fr/de blog
- * and city bodies are still largely English with only title/subtitle/excerpt
- * localized. Translating those bodies is now the highest-value SEO work.
+ * TO ADD A LANGUAGE BACK: translate its locale file completely (and the
+ * bodies of anything it should rank for), then add it here. Do it per
+ * language, and only when a native reader would call the page theirs.
  */
-export const INDEXABLE_LOCALES = RESOLVABLE_LOCALES;
+export const INDEXABLE_LOCALES: readonly (typeof RESOLVABLE_LOCALES)[number][] = ["en"];
+
+/** The language every not-yet-written locale variant points its canonical at. */
+export const PRIMARY_LOCALE = "en";
 
 /* -------------------------------------------------------------------------- */
 /*                       Backwards-compat aliases                             */
@@ -129,10 +135,7 @@ export const COUNTRIES = INDEXABLE_COUNTRIES;
 /*                              Type guards                                   */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Is this country/locale combo something we want indexed by Google?
- * Used by layout + seo.ts to decide robots index/noindex flags.
- */
+/** Is this country one of the canonical editions (INDEXABLE_COUNTRIES)? */
 export function isIndexableCountry(
   code: string,
 ): code is (typeof INDEXABLE_COUNTRIES)[number] {
@@ -146,11 +149,29 @@ export function isIndexableLocale(
 }
 
 /**
- * Combined check — index only when BOTH country and locale are indexable.
- * Both sets are currently the full resolvable/ISO sets, so this is false only
- * for codes the router does not know (e.g. /zz/en or /in/xx).
+ * May this URL carry `index, follow`? True for every country and locale the
+ * router renders; false only for codes it does not know (/zz/en, /in/xx).
+ *
+ * This is deliberately NOT "is this the copy Google should index". That is
+ * the canonical's job: /us/en/pricing is indexable and declares
+ * /in/en/pricing as canonical, which is what makes Google report it as an
+ * alternate instead of a competing duplicate. Putting `noindex` on it as well
+ * would send two conflicting signals. For "is this the canonical edition",
+ * use `isCanonicalEdition`.
  */
 export function isIndexable(country: string, locale: string): boolean {
+  return (
+    (ALL_COUNTRIES as readonly string[]).includes(country.toLowerCase()) &&
+    (RESOLVABLE_LOCALES as readonly string[]).includes(locale.toLowerCase())
+  );
+}
+
+/**
+ * Is /{country}/{locale}/ the canonical edition for site-wide pages — the copy
+ * that is self-canonical and listed in the sitemap? Pages written in extra
+ * languages (a city with a Hindi body) check their own locale list instead.
+ */
+export function isCanonicalEdition(country: string, locale: string): boolean {
   return isIndexableCountry(country) && isIndexableLocale(locale);
 }
 
@@ -237,3 +258,12 @@ export const BRAND = {
   domain: "savingroup.in",
   legalNote: "Savin Group is the trading name for this site, savingroup.in.",
 } as const;
+
+/**
+ * The one identifier for Savin Group in structured data. The site-wide
+ * Organization node declares it, and every `provider` / `publisher` points at
+ * it, so search engines and AI knowledge graphs merge every Service, WebSite
+ * and page node into ONE entity instead of dozens of nameless "Savin Group"
+ * blank nodes. Never change it: it is an identifier, not a link.
+ */
+export const ORGANIZATION_ID = `${BASE_URL}/#organization`;

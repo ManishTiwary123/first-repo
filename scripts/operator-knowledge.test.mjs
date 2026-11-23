@@ -285,7 +285,9 @@ test("fact sheet and contact channels", () => {
 
 /* ------------------------------ honesty fixes ------------------------------ */
 
-// Every CTA button leads to /contact, whose form fakes a successful submit.
+// Records name WhatsApp and email only: those work whether or not the form's
+// backend (/api/leads) is configured in a given deployment. See the note on
+// CTA_LABEL in lib/operator/knowledge.ts.
 test("no record or fact-sheet line steers visitors to the site's button or form", () => {
   for (const record of KNOWLEDGE_RECORDS) {
     assert.ok(!text(record).includes(CTA_LABEL), `${record.id} names the CTA button`);

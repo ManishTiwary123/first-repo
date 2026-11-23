@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Globe2,
   ArrowUpRight,
-  CheckCircle2,
 } from "lucide-react";
 
 export async function generateMetadata({
@@ -62,7 +61,7 @@ export default async function ContactPage({
         <div className="grid items-start gap-8 lg:grid-cols-5 lg:gap-10">
           {/* Form */}
           <div className="lg:col-span-3">
-            <ContactForm t={t} />
+            <ContactForm t={t} locale={locale as Locale} country={country} countryName={geo.countryName} formId="contact" />
           </div>
 
           {/* Sidebar */}
@@ -203,24 +202,12 @@ export default async function ContactPage({
         </div>
       </Section>
 
-      {/* ── PROOF STRIP ── */}
-      <Section className="pt-0">
-        <div className="rounded-2xl border border-border bg-surface/30 p-4 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              "50+ businesses scaled",
-              "₹40Cr+ revenue impacted",
-              "200% average ROI",
-              "4.9/5 satisfaction",
-            ].map((text) => (
-              <div key={text} className="flex items-center gap-2.5">
-                <CheckCircle2 size={16} className="shrink-0 text-accent" />
-                <span className="text-sm font-medium text-foreground">{text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      {/* The proof strip that stood here listed "50+ businesses scaled", "₹40Cr+
+          revenue impacted", "200% average ROI" and "4.9/5 satisfaction". None of the
+          four can be sourced (the 4.9 rating is documented as invented in
+          layout.tsx), so it was removed from the page where a visitor decides
+          whether to trust us with an enquiry. Put real, attributable proof here
+          when there is some. */}
 
       <KnowMore t={t} pageKey="contact" pageLabel="Contact" />
       <IndiaGeoFooter country={country} locale={locale} pageKey="contact" />

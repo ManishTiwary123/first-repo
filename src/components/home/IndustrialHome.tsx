@@ -129,6 +129,8 @@ export function IndustrialHome({ t, country, faqItems }: { t: Messages; country:
           </div>
           <CapabilityExplorer />
           <div className={styles.sectionBottom}><span>Start with one process. Connect the next when you’re ready.</span><Link href={`${base}/services`}>Explore our services<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+          {/* The product these capabilities add up to. */}
+          <div className={styles.sectionBottom}><span>Factory Graph: one intelligence layer around the machines, engineering tools, ERP and CRM you already run.</span><Link href={`${base}/factory-graph`} data-track="cta_click" data-track-label="Factory Graph" data-track-location="home-capabilities">Explore Factory Graph<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
         </div>
       </section>
 

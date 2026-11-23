@@ -24,11 +24,13 @@
 import type { KnowledgeConfidence, KnowledgeKind, KnowledgeSource } from "@/lib/operator/protocol";
 import type { CaseCopy } from "@/components/case-studies/case-studies-copy";
 import en from "@/locales/en.json";
-// CTA_LABEL is deliberately not imported. Every "Request your free audit"
-// button leads to /contact, whose form does not deliver anything yet (it
-// shows "Message received" after a timer). Naming the button would send
-// visitors into a lost lead, so records name only WhatsApp and email as ways
-// to reach Savin. Revisit once ContactForm really submits.
+// CTA_LABEL is deliberately not imported. The "Request your free audit"
+// button leads to /contact. That form now posts to /api/leads and shows the
+// server's real answer (it used to show "Message received" after a timer and
+// send nothing), but whether a lead is DELIVERED depends on the deployment
+// having LEADS_DATABASE_URL or LEAD_WEBHOOK_URL set. Until delivery has been
+// confirmed in production, records keep naming only WhatsApp and email, the
+// two channels that work either way. Revisit once that is verified live.
 import { AFTER_ENQUIRY, AUDIT, DISCOVERY, ENTRY, TIER_TO_SYSTEM } from "@/lib/offer";
 import { TEAM } from "@/lib/team";
 import { BASE_URL, BRAND, SOCIAL_PROFILES, STATIC_PAGES } from "@/lib/constants";

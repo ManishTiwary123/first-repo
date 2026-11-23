@@ -4,9 +4,11 @@ import { BASE_URL } from "@/lib/constants";
 /**
  * Site robots policy.
  *
- *  - Allow the entire public tree. Every country × locale combination in
- *    INDEXABLE_COUNTRIES × INDEXABLE_LOCALES is indexable (see
- *    `constants.ts`), so every one of them must be crawlable.
+ *  - Allow the entire public tree. Every rendered country × locale variant
+ *    must stay crawlable even though only /in/en/ (plus written locales) is
+ *    the canonical edition: Google has to fetch /us/en/pricing to read the
+ *    canonical that points it at /in/en/pricing. Blocking the variants here
+ *    would leave them stuck in "Discovered – currently not indexed" forever.
  *  - Disallow `/api/` only. `/_next/` must NOT be disallowed: every stylesheet
  *    and every JS chunk the pages load lives under `/_next/static/`, and
  *    blocking it stops Googlebot's renderer from seeing the page as a user

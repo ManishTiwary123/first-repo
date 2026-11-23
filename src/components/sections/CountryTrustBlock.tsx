@@ -1,6 +1,6 @@
 import { MapPin, ShieldCheck, Clock, Wallet } from "lucide-react";
 import { getCountryContent } from "@/lib/country-content";
-import { isResolvableCountry, BASE_URL } from "@/lib/constants";
+import { isResolvableCountry, BASE_URL, ORGANIZATION_ID } from "@/lib/constants";
 import type { Messages } from "@/lib/i18n";
 import { Section } from "../primitives/section";
 
@@ -51,6 +51,7 @@ export function CountryTrustBlock({
     description: c.trustBlock.body[0],
     provider: {
       "@type": "Organization",
+      "@id": ORGANIZATION_ID,
       name: t.brand.name,
       url: BASE_URL,
     },

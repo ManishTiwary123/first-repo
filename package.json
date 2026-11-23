@@ -6,9 +6,16 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:leads && npm run test:platform && npm run test:sitemaps && npm run test:research && npm run test:llms && npm run test:operator",
+    "test:leads": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/leads.test.mjs",
+    "test:platform": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/platform.test.mjs",
+    "test:research": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/research.test.mjs",
     "test:sitemaps": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sitemap.test.mjs",
     "test:operator": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/operator-knowledge.test.mjs scripts/operator-server.test.mjs scripts/operator-client.test.mjs scripts/operator-views.test.mjs scripts/operator-providers.test.mjs",
-    "validate:sitemaps": "node scripts/validate-sitemaps.mjs"
+    "validate:sitemaps": "node scripts/validate-sitemaps.mjs",
+    "test:llms": "node --test --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/llms.test.mjs",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

@@ -8,58 +8,98 @@ import {
 } from "@/lib/i18n";
 import {
   BASE_URL,
+  BRAND,
   HREFLANG_COUNTRIES,
   INDEXABLE_LOCALES,
+  ORGANIZATION_ID,
+  PRIMARY_COUNTRY,
+  PRIMARY_LOCALE,
   SOCIAL_PROFILES,
-  isHreflangCountry,
   isIndexable,
+  isIndexableCountry,
 } from "@/lib/constants";
 import { validCountryISOs } from "@/middleware";
 import { localizedPath, normalizePublicUrl } from "@/lib/public-url";
 import { getUrlGeo, formatLocation, formatLocationShort, type GeoInfo } from "@/lib/geo";
-import {
-  getCityIndexableLocales,
-  isCityIndexable,
-  type CityContent,
-} from "@/lib/cities";
+import { getCityPageLocales, type CityContent } from "@/lib/cities";
 
 /* -------------------------------------------------------------------------- */
 /*                Hreflang / canonical helpers                                */
 /* -------------------------------------------------------------------------- */
 
 /**
- * The shape Next.js wants under `metadata.alternates`. We always ship
- * `canonical` (self-referencing for indexable pages, self-referencing for
- * noindex pages too — the noindex header tells Google not to index, but the
- * canonical still tells Google "this URL is the URL for this content").
- *
- * `languages` is omitted entirely for noindex pages. Per Google's i18n docs,
- * pages marked `noindex` cannot be members of an hreflang cluster, so emitting
- * cluster info from them is wasted bytes and creates the appearance of a
- * one-page cluster from every locale variant — which Google then discards.
+ * The shape Next.js wants under `metadata.alternates`. `canonical` is always
+ * present. `languages` (the hreflang cluster) is present only on a canonical
+ * edition: a page whose canonical points elsewhere cannot be a cluster member,
+ * and declaring one from it is a non-reciprocal set that Google discards.
  */
-type AlternatesShape = {
+export type AlternatesShape = {
   canonical: string;
   languages?: Record<string, string>;
 };
 
 /**
- * Standard hreflang + canonical for pages whose indexable surface is the
- * site-wide one (INDEXABLE_COUNTRIES × INDEXABLE_LOCALES).
+ * THE canonical rule for every page on the site. Every builder below — site
+ * pages, city pages, Factory Graph pages — goes through here, so the
+ * sitemap, the canonical and the hreflang cluster cannot disagree.
  *
- * - When the requested URL is INDEXABLE and its country is in
- *   HREFLANG_COUNTRIES: emit a self-canonical and a languages map listing
- *   each hreflang-market x indexable-locale variant of THIS page, keyed
- *   region-tagged (`en-IN`), plus an `x-default` pointing at /in/en.
- * - When the requested URL is indexable but outside the cluster (e.g.
- *   /cv/en/services), or NOINDEX: emit a self-canonical and OMIT the
- *   languages map. The page is not a cluster member — including hreflangs
- *   from it would declare a set the member pages never point back to,
- *   which Google discards.
+ *   country not an edition   /us/en/pricing   → canonical /in/en/pricing
+ *   locale not written       /in/hi/pricing   → canonical /in/en/pricing
+ *   both                     /mo/hi/pricing   → canonical /in/en/pricing
+ *   the edition itself       /in/en/pricing   → self-canonical + hreflang
+ *   unknown code             /zz/en/pricing   → self-canonical (the route
+ *                                               404s; noindex via isIndexable)
  *
- * `subPath` is the part AFTER `/in/{locale}/` — pass `""` for the homepage,
- * `"services"` for the services page, `"industries/manufacturing"` for an
- * industry slug, etc. Leading/trailing slashes are stripped.
+ * `locales` is the languages THIS page is written in. Most pages pass nothing
+ * and get INDEXABLE_LOCALES; a city with a Hindi body passes ["en", "hi"].
+ * It must include PRIMARY_LOCALE, which is where everything else points.
+ *
+ * Every variant stays `index, follow` (see `isIndexable` in constants.ts):
+ * the canonical alone tells Google which copy to keep. That is what turns
+ * "Duplicate, Google chose different canonical than user" into "Alternate
+ * page with proper canonical tag".
+ */
+export function resolveAlternates({
+  country,
+  locale,
+  subPath,
+  locales = INDEXABLE_LOCALES,
+}: {
+  country: string;
+  locale: string;
+  subPath: string;
+  locales?: readonly string[];
+}): AlternatesShape {
+  const self = localizedPath({ country, locale, pathname: subPath });
+  if (!isIndexable(country, locale)) return { canonical: self };
+
+  const canonical = localizedPath({
+    country: isIndexableCountry(country) ? country : PRIMARY_COUNTRY,
+    locale: locales.includes(locale.toLowerCase()) ? locale : PRIMARY_LOCALE,
+    pathname: subPath,
+  });
+  if (canonical !== self) return { canonical };
+
+  // The cluster: every edition country x every language this page is written
+  // in, region-tagged (`en-IN`), identical on every member so each one
+  // self-references, plus x-default on the primary edition.
+  const languages: Record<string, string> = {};
+  for (const c of HREFLANG_COUNTRIES) {
+    for (const lang of locales) {
+      languages[`${lang}-${c.toUpperCase()}`] =
+        normalizePublicUrl({ country: c, locale: lang, pathname: subPath });
+    }
+  }
+  languages["x-default"] =
+    normalizePublicUrl({ country: PRIMARY_COUNTRY, locale: PRIMARY_LOCALE, pathname: subPath });
+
+  return { canonical, languages };
+}
+
+/**
+ * Canonical + hreflang for a site-wide page. `subPath` is the part after
+ * `/{country}/{locale}/` — `""` for the homepage, `"services"`,
+ * `"industries/manufacturing"`, `"blogs/some-post"`. See `resolveAlternates`.
  */
 export function buildAlternates({
   country,
@@ -70,38 +110,15 @@ export function buildAlternates({
   locale: string;
   subPath: string;
 }): AlternatesShape {
-  const canonical = localizedPath({ country, locale, pathname: subPath });
-
-  // Indexable countries outside the cluster (/cv/, /za/, ...) get a bare
-  // self-canonical too: listing the cluster from a page that is not in it is
-  // a non-reciprocal set, which Google discards.
-  if (!isIndexable(country, locale) || !isHreflangCountry(country)) {
-    return { canonical };
-  }
-
-  // The cluster spans every HREFLANG_COUNTRIES x indexable locale pair. Each
-  // member is region-tagged (`en-IN`, `en-US`, ...) and the map is identical
-  // on every member page, so each URL self-references — which is what Google
-  // requires for an hreflang cluster to be honoured. Emitting a single `/in/`
-  // entry from all markets (the pre-2026-09-09 behaviour) would have Google
-  // fold the non-IN variants back into /in/ instead of indexing them.
-  const languages: Record<string, string> = {};
-  for (const c of HREFLANG_COUNTRIES) {
-    for (const lang of INDEXABLE_LOCALES) {
-      languages[`${lang}-${c.toUpperCase()}`] =
-        normalizePublicUrl({ country: c, locale: lang, pathname: subPath });
-    }
-  }
-  languages["x-default"] = normalizePublicUrl({ country: "in", locale: "en", pathname: subPath });
-
-  return { canonical, languages };
+  return resolveAlternates({ country, locale, subPath });
 }
 
 /**
  * Hreflang + canonical for city-anchored pages (`/in/{locale}/cities/{slug}`
- * and its sub-routes). Indexability is per-CITY here — a city with a
- * complete Hindi body emits `hi-IN` alongside `en-IN`, while every other
- * city only emits `en-IN`. See `getCityIndexableLocales` in lib/cities.ts.
+ * and its sub-routes). The written languages are per-CITY and per-page — see
+ * `getCityPageLocales` in lib/cities.ts — so the one city with a hand-written
+ * Hindi body keeps /in/hi/cities/{slug} as its own canonical while the other
+ * cities' /hi/ copies point at English.
  *
  * `cityPath` is everything after `cities/` — e.g. `mumbai`, `mumbai/about`,
  * `mumbai/blog/some-post`. Leading/trailing slashes are stripped.
@@ -117,27 +134,12 @@ export function buildCityAlternates({
   city: CityContent;
   cityPath: string;
 }): AlternatesShape {
-  const fullSub = `cities/${cityPath}`;
-  const canonical = localizedPath({ country, locale, pathname: fullSub });
-
-  if (!isCityIndexable(city, country, locale) || !isHreflangCountry(country)) {
-    return { canonical };
-  }
-
-  // Same country x locale cluster as `buildAlternates` — city pages are no
-  // longer /in/-only, so the cluster must span every hreflang market or the
-  // non-IN variants advertise a cluster they aren't a member of.
-  const cityLocales = getCityIndexableLocales(city);
-  const languages: Record<string, string> = {};
-  for (const c of HREFLANG_COUNTRIES) {
-    for (const lang of cityLocales) {
-      languages[`${lang}-${c.toUpperCase()}`] =
-        normalizePublicUrl({ country: c, locale: lang, pathname: fullSub });
-    }
-  }
-  languages["x-default"] = normalizePublicUrl({ country: "in", locale: "en", pathname: fullSub });
-
-  return { canonical, languages };
+  return resolveAlternates({
+    country,
+    locale,
+    subPath: `cities/${cityPath}`,
+    locales: getCityPageLocales(city, cityPath),
+  });
 }
 
 
@@ -193,9 +195,9 @@ interface BuildMetadataArgs {
  * detection fails. The city is added only when it makes the title fit.
  *
  * Examples:
- *   IN, detected city: "Savin Group in Bangalore, India — We Build Revenue Systems…"
- *   IN, no city:       "Savin Group in India — We Build Revenue Systems…"
- *   US, detected city: "Savin Group in New York, United States — We Build…"
+ *   IN, detected city: "Savin Group in Bangalore, India — Software, AI & Industrial…"
+ *   IN, no city:       "Savin Group in India — Software, AI & Industrial…"
+ *   US, detected city: "Savin Group in New York, United States — Software…"
  *
  * Length budget: ~85 chars. The country always wins; city is dropped first
  * if total length would exceed the budget.
@@ -295,6 +297,22 @@ function geoifyKeywords(keywords: string, geo: GeoInfo): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                                Page titles                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The `title` to return from a page's metadata. The locale layout's template
+ * appends " · Savin Group" to every child page's title, and most titles here
+ * already name the brand ("Savin Group in India — Pricing", "… in Pune ·
+ * Savin Group"), which rendered as "… · Savin Group · Savin Group" on ten
+ * page types. A title that already names the brand is emitted as-is; any
+ * other title gets the suffix from the template. The brand appears once.
+ */
+export function pageTitle(title: string): string | { absolute: string } {
+  return title.includes(BRAND.name) ? { absolute: title } : title;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                             buildPageMetadata                              */
 /* -------------------------------------------------------------------------- */
 
@@ -367,7 +385,7 @@ export async function buildPageMetadata({
   }
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     keywords,
     metadataBase: new URL(BASE_URL),
@@ -394,9 +412,9 @@ export async function buildPageMetadata({
       description: ogDescription,
       images: [`${BASE_URL}/og.png`],
     },
-    // Every country x locale in INDEXABLE_COUNTRIES x INDEXABLE_LOCALES is
-    // indexed; anything outside (only unknown codes today) ships
-    // `noindex,follow`. See constants.ts for what the two sets contain.
+    // `index` on every rendered variant; the canonical above decides which
+    // copy Google keeps (see `resolveAlternates`). Only unknown codes ship
+    // `noindex,follow`.
     robots: isIndexable(country, locale)
       ? {
           index: true,
@@ -425,14 +443,46 @@ export async function buildPageMetadata({
 /*                              JSON-LD builders                              */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Topics the Organization node claims expertise in. Each one is a service the
+ * site sells (services in en.json) or a Factory Graph page (platform/pages.ts);
+ * keep it that way — `knowsAbout` is what entity graphs and AI assistants use
+ * to answer "who does X", so a topic the site has no page for is a false lead.
+ */
+const ORGANIZATION_EXPERTISE = [
+  "Custom software development",
+  "Conversion-focused website development",
+  "WhatsApp automation",
+  "CRM automation",
+  "Search engine optimization",
+  "Local SEO",
+  "Multi-language websites",
+  "Custom ERP development",
+  "Business process automation",
+  "AI automation",
+  "AI agents for ERP and CRM",
+  "Industrial IoT",
+  "Digital twins",
+  "CAD/CAM and CNC integration",
+  "Manufacturing ERP integration",
+  "Smart manufacturing",
+];
+
 export function buildOrganizationJsonLd(t: Messages) {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": ORGANIZATION_ID,
     name: t.brand.name,
+    alternateName: BRAND.domain,
     url: BASE_URL,
     logo: `${BASE_URL}/og.png`,
     description: t.seo.description,
+    slogan: t.brand.tagline,
+    email: t.contact.details.email,
+    telephone: t.contact.details.phone,
+    knowsAbout: ORGANIZATION_EXPERTISE,
+    brand: { "@type": "Brand", name: "Factory Graph" },
     // `sameAs` is emitted only when real profiles exist — Google uses it for
     // entity verification and a platform homepage with no company slug is an
     // unverifiable claim, which is worse than omitting the field. The list now
@@ -458,42 +508,11 @@ export function buildOrganizationJsonLd(t: Messages) {
   };
 }
 
-/**
- * `LocalBusiness` JSON-LD keyed to the visitor's detected city/state/country.
- * This is what tells Google "this page is relevant for [city] searches".
- */
-export function buildLocalBusinessJsonLd(t: Messages, geo: GeoInfo) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ProfessionalService",
-    name: `${t.brand.name} — ${geo.city}`,
-    url: BASE_URL,
-    image: `${BASE_URL}/og.png`,
-    description: t.seo.description,
-    priceRange: "₹₹₹",
-    telephone: t.contact.details.phone,
-    email: t.contact.details.email,
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: geo.city,
-      addressRegion: geo.state,
-      addressCountry: geo.countryCode.toUpperCase(),
-    },
-    ...(geo.latitude && geo.longitude
-      ? {
-          geo: {
-            "@type": "GeoCoordinates",
-            latitude: geo.latitude,
-            longitude: geo.longitude,
-          },
-        }
-      : {}),
-    areaServed: {
-      "@type": "City",
-      name: geo.city,
-    },
-  };
-}
+// No LocalBusiness / ProfessionalService builder. The last one took its
+// postal address from the VISITOR's IP (see the note in CityBanner.tsx), and
+// the business has no premises address to publish. Organization (above) and
+// per-city `Service` + `areaServed` nodes state what is true. Add a
+// LocalBusiness only with a real, verifiable street address.
 
 export function buildWebsiteJsonLd(t: Messages, locale: Locale, country: string) {
   return {
@@ -507,7 +526,7 @@ export function buildWebsiteJsonLd(t: Messages, locale: Locale, country: string)
     name: t.brand.name,
     url: `${BASE_URL}/${country}/${locale}`,
     inLanguage: locale,
-    publisher: { "@type": "Organization", name: t.brand.name },
+    publisher: { "@type": "Organization", "@id": ORGANIZATION_ID, name: t.brand.name },
     // No `potentialAction`/SearchAction. It declared a Sitelinks Searchbox
     // target of `?q={search_term_string}`, but the site implements no search
     // — the parameter is read nowhere, and the URL just returns the homepage.
@@ -621,7 +640,7 @@ export async function buildIndustryPageMetadata({
   }
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     keywords,
     metadataBase: new URL(BASE_URL),
@@ -690,6 +709,7 @@ export function buildIndustryServiceJsonLd(
     description: industry.metaDescription,
     provider: {
       "@type": "Organization",
+      "@id": ORGANIZATION_ID,
       name: "Savin Group",
       url: BASE_URL,
     },
@@ -721,7 +741,7 @@ export function buildServiceJsonLd(
     name: service.name,
     serviceType: service.kicker,
     description: service.summary,
-    provider: { "@type": "Organization", name: "Savin Group" },
+    provider: { "@type": "Organization", "@id": ORGANIZATION_ID, name: "Savin Group" },
     url: `${BASE_URL}/${country}/${locale}/services#${service.id}`,
     areaServed: "Worldwide",
     offers: {
@@ -737,197 +757,14 @@ export function buildServiceJsonLd(
 }
 
 /* -------------------------------------------------------------------------- */
-/*                    India-Specific LocalBusiness Schema                    */
+/*                       Removed: India LocalBusiness helpers                 */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Build LocalBusiness JSON-LD for city pages in India.
- * Includes full contact details, service areas (neighborhoods),
- * and aggregated ratings from testimonials.
- */
-export function buildCityLocalBusinessJsonLd(
-  city: CityContent,
-  locale: Locale,
-  testimonialCount: number = 0,
-  aggregateRating: number = 4.9,
-) {
-  const url = `${BASE_URL}/in/${locale}/cities/${city.slug}`;
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    "@id": url,
-    name: `Savin Group — ${city.name}`,
-    description: city.metaDescription,
-    url,
-    image: `${BASE_URL}/og.png`,
-    telephone: "+91-XXXX-XXXX", // Replace with actual number
-    email: "savingroup@gmail.com",
-    priceRange: "₹₹₹",
-
-    // Address in India
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "Office details",
-      addressLocality: city.name,
-      addressRegion: city.state,
-      postalCode: "",
-      addressCountry: "IN",
-    },
-
-    // Geographic coordinates
-    geo: {
-      "@type": "GeoCoordinates",
-      latitude: parseFloat(city.geo.lat),
-      longitude: parseFloat(city.geo.lng),
-    },
-
-    // Service areas — all neighborhoods
-    areaServed: city.neighborhoods.map(neighborhood => ({
-      "@type": "City",
-      name: neighborhood,
-      containedInPlace: {
-        "@type": "State",
-        name: city.state,
-        containedInPlace: {
-          "@type": "Country",
-          name: "India",
-        },
-      },
-    })),
-
-    // Aggregate rating from testimonials
-    ...(testimonialCount > 0 && aggregateRating > 0
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: String(aggregateRating),
-            bestRating: "5",
-            worstRating: "1",
-            ratingCount: String(testimonialCount),
-            reviewCount: String(testimonialCount),
-          },
-        }
-      : {}),
-
-    // Service type for agency
-    knowsAbout: [
-      "Web Development",
-      "SEO",
-      "Digital Marketing",
-      "Revenue Systems",
-      "E-commerce",
-    ],
-  };
-}
-
-/**
- * Build City Breadcrumb JSON-LD for city pages.
- * Path: Home > Services > Cities > {City} > {Optional subpage}
- */
-export function buildCityBreadcrumbJsonLd(
-  city: CityContent,
-  locale: Locale,
-  subPage?: { name: string; slug: string },
-): object {
-  const baseUrl = `${BASE_URL}/in/${locale}`;
-  const cityUrl = `${baseUrl}/cities/${city.slug}`;
-
-  const items = [
-    { name: "Home", url: baseUrl, position: 1 },
-    { name: "Cities", url: `${baseUrl}/cities`, position: 2 },
-    { name: city.name, url: cityUrl, position: 3 },
-  ];
-
-  if (subPage) {
-    items.push({
-      name: subPage.name,
-      url: `${cityUrl}/${subPage.slug}`,
-      position: 4,
-    });
-  }
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map(it => ({
-      "@type": "ListItem",
-      position: it.position,
-      name: it.name,
-      item: it.url,
-    })),
-  };
-}
-
-/**
- * Enhanced FAQ schema for city pages with better structure.
- * Includes metadata about each question.
- */
-export function buildCityFaqJsonLd(
-  items: Array<{ q: string; a: string; category?: string }>,
-) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: items.map((item, idx) => ({
-      "@type": "Question",
-      position: idx + 1,
-      name: item.q,
-      keywords: item.category || "general",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.a,
-      },
-    })),
-  };
-}
-
-/**
- * Build Service Area JSON for India cities.
- * Helps Google understand multi-city service coverage.
- */
-export function buildServiceAreaJsonLd(
-  cities: CityContent[],
-  locale: Locale,
-) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    name: "Savin Group — India",
-    description: "Web development and digital marketing agency serving Indian cities",
-    url: `${BASE_URL}/in/${locale}`,
-    areaServed: cities.map(city => ({
-      "@type": "City",
-      name: city.name,
-      containedInPlace: {
-        "@type": "State",
-        name: city.state,
-        containedInPlace: {
-          "@type": "Country",
-          name: "India",
-        },
-      },
-      geo: {
-        "@type": "GeoCoordinates",
-        latitude: parseFloat(city.geo.lat),
-        longitude: parseFloat(city.geo.lng),
-      },
-    })),
-  };
-}
-
-/**
- * Build India geo-targeting metadata for robots and headers.
- * Ensures search engines know this site targets India.
- */
-export function buildIndiaGeoTargeting(country: string, locale: Locale) {
-  if (country !== "in") {
-    return {};
-  }
-
-  return {
-    "geo.region": "IN",
-    "geo.country": "India",
-    "geo.placename": "India",
-  };
-}
+// buildCityLocalBusinessJsonLd, buildCityBreadcrumbJsonLd, buildCityFaqJsonLd,
+// buildServiceAreaJsonLd and buildIndiaGeoTargeting were removed on
+// 2026-11-23. None was called, and each would have published something false
+// the moment it was: a "+91-XXXX-XXXX" phone, an "Office details" street
+// address, a default 4.9 AggregateRating with no reviews behind it, a
+// LocalBusiness with no address, and FAQ Questions carrying properties
+// schema.org does not define. City pages emit Service + areaServed and
+// buildBreadcrumbJsonLd / buildFaqJsonLd instead.

@@ -24,7 +24,7 @@ import { INDIA_CITIES, getCityBySlug } from "@/lib/cities";
 import { getCityIdentity } from "@/lib/city-identity";
 import { getCityExtras } from "@/lib/city-extras";
 import { getCityPosts } from "@/lib/city-blog";
-import { buildBreadcrumbJsonLd, buildCityAlternates } from "@/lib/seo";
+import { buildBreadcrumbJsonLd, buildCityAlternates, pageTitle } from "@/lib/seo";
 import { PageHero } from "@/components/sections/PageHero";
 import { Section, Eyebrow } from "@/components/primitives/section";
 import { SnapRowHint } from "@/components/primitives/snap-row-hint";
@@ -78,7 +78,7 @@ export async function generateMetadata({
   });
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     keywords: `about ${city.name}, ${identity.nickname}, why is ${city.name} called ${identity.nickname}, ${city.name} landmarks, ${city.name} history, ${city.name} industries, ${city.name} economy, ${identity.landmarks.map((l) => l.name).join(", ")}`,
     metadataBase: new URL(BASE_URL),

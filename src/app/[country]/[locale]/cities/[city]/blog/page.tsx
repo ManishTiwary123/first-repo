@@ -23,7 +23,7 @@ import {
 import { INDIA_CITIES, getCityBySlug } from "@/lib/cities";
 import { getCityIdentity } from "@/lib/city-identity";
 import { getCityPosts } from "@/lib/city-blog";
-import { buildBreadcrumbJsonLd, buildCityAlternates } from "@/lib/seo";
+import { buildBreadcrumbJsonLd, buildCityAlternates, pageTitle } from "@/lib/seo";
 import { Section } from "@/components/primitives/section";
 import { SnapRowHint } from "@/components/primitives/snap-row-hint";
 import { Cta } from "@/components/sections/Cta";
@@ -68,7 +68,7 @@ export async function generateMetadata({
   });
 
   return {
-    title,
+    title: pageTitle(title),
     description,
     keywords: `${city.name} blog, ${city.name} insights, ${city.name} marketing, ${city.name} digital strategy, ${city.name} agency notes, ${city.name} case studies`,
     metadataBase: new URL(BASE_URL),

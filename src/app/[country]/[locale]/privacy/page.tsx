@@ -22,12 +22,12 @@ const sections = [
   {
     icon: Database,
     title: "What we collect",
-    body: "When you contact us through the website or book a Revenue Audit, we collect the information you submit — typically your name, email, company, industry, and a description of the problem you're trying to solve. We also collect basic analytics (page views, referrers, device type) to understand how the site is used.",
+    body: "When you contact us through the website or request an audit, we collect the information you submit: your name, work email, company, role, country and industry, a description of the problem you're trying to solve and, if you choose to give them, a phone number and details of the software and machines you run. With your enquiry we also record which page and form it came from, the site or campaign that referred you, and the consent you gave. We also collect basic analytics (page views, referrers, device type) to understand how the site is used.",
   },
   {
     icon: Shield,
     title: "How we use it",
-    body: "We use the information you submit to respond to your inquiry, schedule a discovery session, and tailor our recommendations to your business. We do not sell, rent, or share your information with third parties for marketing.",
+    body: "We use the information you submit to respond to your inquiry, schedule a discovery session, and tailor our recommendations to your business. We do not sell, rent, or share your information with third parties for marketing. We send product and engineering updates only if you ticked that option on the form, and you can ask us to stop at any time.",
   },
   {
     icon: Database,
