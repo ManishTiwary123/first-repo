@@ -13,6 +13,7 @@ import { unstable_cache } from "next/cache";
 import postgres from "postgres";
 import type { Locale } from "@/lib/i18n";
 import { SUPABASE_ROOT_CA } from "@/lib/supabase-ca";
+import { normalizeDatabaseUrl } from "@/lib/db-url";
 
 export type BlogCategory =
   | "growth"
@@ -374,11 +375,9 @@ export function getDb(): postgres.Sql {
   }
   if (globalForDb.__blogDb?.url !== url) {
     void globalForDb.__blogDb?.sql.end({ timeout: 5 });
-    // `pgbouncer=true` is a Prisma-style flag; postgres.js would forward it
-    // to the server as a startup parameter, so strip it.
-    const u = new URL(url);
-    u.searchParams.delete("pgbouncer");
-    const sql = postgres(u.toString(), {
+    // Undoes quote/paste slips and strips `pgbouncer=true`; a value it cannot
+    // repair throws a message saying what is wrong (lib/db-url.ts).
+    const sql = postgres(normalizeDatabaseUrl(url, "DATABASE_URL"), {
       prepare: false,
       ssl: { ca: SUPABASE_ROOT_CA, rejectUnauthorized: true },
       max: 3,

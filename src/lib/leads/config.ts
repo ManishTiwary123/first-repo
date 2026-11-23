@@ -18,6 +18,7 @@
 // Server-only.
 
 import { createHash } from "node:crypto";
+import { normalizeDatabaseUrl } from "@/lib/db-url";
 import { createWebhookNotifier, parseWebhookUrl } from "./notify";
 import type { LeadNotifier, LeadStore } from "./pipeline";
 import { createLeadStore } from "./store";
@@ -31,8 +32,8 @@ function databaseUrl(): string | null {
   const value = process.env.LEADS_DATABASE_URL?.trim();
   if (!value) return null;
   try {
-    const url = new URL(value);
-    return url.protocol === "postgres:" || url.protocol === "postgresql:" ? value : null;
+    // Accepts the same paste slips as DATABASE_URL (quotes, unencoded password).
+    return normalizeDatabaseUrl(value, "LEADS_DATABASE_URL");
   } catch {
     return null;
   }
